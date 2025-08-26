@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  STAFF
+  MEMBER
+}
+
+model Gym {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  address     String
+  city        String
+  state       String
+  country     String
+  postalCode  String
+  phone       String?
+  email       String?
+  website     String?
+  logo        String?
+  description String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  membershipPlans MembershipPlan[]
+  subscriptions   Subscription[]
+}
+
+enum PlanType {
+  MONTHLY
+  QUARTERLY
+  BIANNUAL
+  ANNUAL
+  SESSION_BASED
+}
+
+model MembershipPlan {
+  id          String     @id @default(uuid())
+  name        String
+  description String?
+  price       Float
+  type        PlanType
+  duration    Int        // in months or session count based on type
+  features    String[]   // List of features included in this plan
+  isActive    Boolean    @default(true)
+  gymId       String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  gym          Gym           @relation(fields: [gymId], references: [id])
+  subscriptions Subscription[]
+
+  @@unique([gymId, name])
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PENDING
+  CANCELLED
+  EXPIRED
+  PAUSED
+}
+
+model Subscription {
+  id               String           @id @default(uuid())
+  userId           String           // Reference to user in auth service
+  gymId           String
+  membershipPlanId String
+  startDate       DateTime
+  endDate         DateTime
+  status          SubscriptionStatus @default(PENDING)
+  autoRenew       Boolean          @default(true)
+  sessionsAllowed Int?             // For session-based plans
+  sessionsUsed    Int              @default(0)
+  notes           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  gym             Gym              @relation(fields: [gymId], references: [id])
+  membershipPlan  MembershipPlan   @relation(fields: [membershipPlanId], references: [id])
+  
+  @@index([userId])
+  @@index([gymId])
+  @@index([membershipPlanId])
+}
