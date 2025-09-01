@@ -1,0 +1,130 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum NotificationType {
+  payment
+  bonus
+  system
+  marketing
+  security
+  reminder
+  default
+}
+
+enum NotificationStatus {
+  pending
+  processing
+  sent
+  failed
+  cancelled
+}
+
+enum Priority {
+  low
+  medium
+  high
+  critical
+}
+
+enum Channel {
+  email
+  sms
+  push
+  in_app
+}
+
+enum Purpose {
+  payout_initiated
+  payout_completed
+  payout_failed
+  payout_processed
+  payment_failed
+  payment_success
+  bonus
+  login_alert
+  login_success
+  reminder
+  system
+  default
+  otp
+  transaction
+}
+
+
+
+model Notification {
+  id            Int                @id @default(autoincrement())
+  userId        Int
+  purpose       Purpose
+  type          NotificationType
+  priority      Priority           @default(medium)
+  status        NotificationStatus @default(pending)
+  title         String
+  message       String
+  metadata      Json?
+  referenceId   String?
+  referenceType String?
+  scheduledAt   DateTime?
+  sentAt        DateTime?
+  failureReason String?
+  retryCount    Int                @default(0)
+  maxRetries    Int                @default(3)
+  channels      Channel[]          @default([email]) // email, sms, push, in_app
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([userId, status])
+  @@index([type, priority])
+  @@index([status, scheduledAt])
+  @@map("notifications")
+}
+
+model NotificationTemplate {
+  id           Int              @id @default(autoincrement())
+  channel      Channel
+  type         NotificationType
+  purpose      Purpose
+
+  // Email-specific
+  subject      String?
+  body         String?
+
+  // SMS/Push-specific
+  messageID    String?
+
+  isActive     Boolean          @default(true)
+  placeholders String[]
+  languageCode String?          @default("en")
+
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([channel, type, purpose])
+  @@map("notification_templates")
+}
+
+
+model FcmToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  device    String? 
+  userId    Int
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("fcm_tokens")
+}

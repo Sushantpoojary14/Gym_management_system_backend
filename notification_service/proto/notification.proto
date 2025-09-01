@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package notification;
+
+service NotificationService {
+  rpc CreateNotification (NotificationRequest) returns (NotificationResponse);
+}
+
+message NotificationRequest {
+  string title = 1;
+  string message = 2;
+  string priority = 3;
+  string metadata = 4;
+  string userId = 5;
+  string type = 6;
+  string purpose = 7;
+  optional string referenceId = 10;
+  optional string referenceType = 11;
+  repeated string channels = 12;
+
+}
+
+message NotificationResponse   {
+  bool success = 1;
+  string message = 2;
+}
+  
