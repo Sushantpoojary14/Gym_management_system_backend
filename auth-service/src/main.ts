@@ -1,4 +1,4 @@
-import { NestFactory } from '@nestjs/core';
+import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { join } from 'path';
@@ -6,6 +6,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { ResponseFormatterInterceptor } from './common/interceptors/response.interceptor';
 import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import { AllExceptionsFilter } from 'pipe/exceptions.pipe';
 // import helmet from 'helmet';
 
 async function bootstrap() {
@@ -20,8 +21,9 @@ async function bootstrap() {
   });
 
   console.log('Server starting on port:', port);
-  
-  app.useGlobalPipes(new ValidationPipe())
+  const { httpAdapter } = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new AllExceptionsFilter(httpAdapter));
+
   const reflector = app.get(Reflector)
   app.useGlobalInterceptors(new ResponseFormatterInterceptor(reflector));
   // app.use(helmet());

@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { CustomHttpResponse } from 'src/utils/custom-http-response';
 
 export function sendAuthResponse(
   response: Response,
@@ -27,7 +28,7 @@ export function sendAuthResponse(
       path: '/auth/refresh', // Only send to refresh endpoint
     });
 
-    return {
+    return new CustomHttpResponse({
       message: 'Authentication successful',
       user: {
         id: user?.id,
@@ -39,10 +40,10 @@ export function sendAuthResponse(
         is18: user?.is18,
         createdAt: user?.createdAt,
       },
-    };
+    });
   } else {
     // Mobile clients receive tokens in response body
-    return {
+    return new CustomHttpResponse({
       accessToken,
       refreshToken,
       user: {
@@ -55,7 +56,7 @@ export function sendAuthResponse(
         is18: user?.is18,
         createdAt: user?.createdAt,
       },
-    };
+    });
   }
 }
 

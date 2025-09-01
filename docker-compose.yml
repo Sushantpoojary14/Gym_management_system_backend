@@ -1,9 +1,14 @@
 version: "3.9"
 
 services:
+  eureka:
+    image: steeltoeoss/eureka-server
+    container_name: eureka
+    ports:
+      - "8766:8761"
 
   postgres:
-    image: postgres:15
+    image: postgres:latest
     container_name: postgres_db
     restart: always
     environment:
@@ -11,118 +16,116 @@ services:
       POSTGRES_PASSWORD: password123
       POSTGRES_DB: gymdb
     ports:
-      - "5432:5432"
+      - "5436:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  mongo:
-    image: mongo:6
-    container_name: mongo_db
-    restart: always
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
 
   redis:
-    image: redis:7
+    image: redis:alpine
     container_name: redis_queue
     restart: always
     ports:
-      - "6379:6379"
+      - "6381:6379"
 
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: rabbitmq_broker
-    restart: always
-    ports:
-      - "5672:5672"   # AMQP
-      - "15672:15672" # Management UI
-    environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: admin
+
 
   auth-service:
-    build: ../auth-service
+    build: ./auth-service
     container_name: auth_service
     restart: always
     depends_on:
       - postgres
-      - rabbitmq
+    command: npx prisma migrate deploy && npm run start:dev
+    volumes:
+      - ./auth-service:/usr/src/app
+      - /usr/src/app/node_modules
     environment:
       DATABASE_URL: postgres://gymadmin:password123@postgres:5432/authdb
       JWT_SECRET: supersecret
-      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+      JWT_REFRESH_SECRET: supersecret
+      REDIS_HOST: redis
+      REDIS_PORT: 6381
+      EUREKA_SERVER_HOST: localhost
+      EUREKA_SERVER_PORT: 8766
+      EUREKA_INSTANCE_HOSTNAME: auth_service
+      HOST_URL: http://auth_service:4001
+      AWS_BUCKET_NAME:
+      AWS_REGION:
+      AWS_ACCESS_KEY_ID:
+      AWS_SECRET_ACCESS_KEY:
+      NODE_ENV:
+
     ports:
       - "4001:3000"
 
-  gym-service:
-    build: ../gym-service
-    container_name: gym_service
-    restart: always
-    depends_on:
-      - postgres
-      - rabbitmq
-    environment:
-      DATABASE_URL: postgres://gymadmin:password123@postgres:5432/gymdb
-      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
-    ports:
-      - "4002:3000"
+  # gym-service:
+  #   build: ../gym-service
+  #   container_name: gym_service
+  #   restart: always
+  #   depends_on:
+  #     - postgres
+  #     - rabbitmq
+  #   environment:
+  #     DATABASE_URL: postgres://gymadmin:password123@postgres:5432/gymdb
+  #     RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+  #   ports:
+  #     - "4002:3000"
 
-  user-service:
-    build: ../user-service
-    container_name: user_service
-    restart: always
-    depends_on:
-      - postgres
-      - rabbitmq
-    environment:
-      DATABASE_URL: postgres://gymadmin:password123@postgres:5432/userdb
-      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
-    ports:
-      - "4003:3000"
+  # user-service:
+  #   build: ../user-service
+  #   container_name: user_service
+  #   restart: always
+  #   depends_on:
+  #     - postgres
+  #     - rabbitmq
+  #   environment:
+  #     DATABASE_URL: postgres://gymadmin:password123@postgres:5432/userdb
+  #     RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+  #   ports:
+  #     - "4003:3000"
 
-  attendance-service:
-    build: ../attendance-service
-    container_name: attendance_service
-    restart: always
-    depends_on:
-      - mongo
-      - rabbitmq
-    environment:
-      MONGO_URL: mongodb://mongo:27017/attendance
-      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
-    ports:
-      - "4004:3000"
+  # attendance-service:
+  #   build: ../attendance-service
+  #   container_name: attendance_service
+  #   restart: always
+  #   depends_on:
+  #     - mongo
+  #     - rabbitmq
+  #   environment:
+  #     MONGO_URL: mongodb://mongo:27017/attendance
+  #     RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+  #   ports:
+  #     - "4004:3000"
 
-  payment-service:
-    build: ../payment-service
-    container_name: payment_service
-    restart: always
-    depends_on:
-      - postgres
-      - rabbitmq
-    environment:
-      DATABASE_URL: postgres://gymadmin:password123@postgres:5432/paymentdb
-      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
-      STRIPE_SECRET: your_stripe_secret
-    ports:
-      - "4005:3000"
+  # payment-service:
+  #   build: ../payment-service
+  #   container_name: payment_service
+  #   restart: always
+  #   depends_on:
+  #     - postgres
+  #     - rabbitmq
+  #   environment:
+  #     DATABASE_URL: postgres://gymadmin:password123@postgres:5432/paymentdb
+  #     RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+  #     STRIPE_SECRET: your_stripe_secret
+  #   ports:
+  #     - "4005:3000"
 
-  notification-service:
-    build: ../notification-service
-    container_name: notification_service
-    restart: always
-    depends_on:
-      - postgres
-      - redis
-      - rabbitmq
-    environment:
-      DATABASE_URL: postgres://gymadmin:password123@postgres:5432/notificationdb
-      REDIS_URL: redis://redis:6379
-      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
-    ports:
-      - "4006:3000"
+  # notification-service:
+  #   build: ../notification-service
+  #   container_name: notification_service
+  #   restart: always
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #     - rabbitmq
+  #   environment:
+  #     DATABASE_URL: postgres://gymadmin:password123@postgres:5432/notificationdb
+  #     REDIS_URL: redis://redis:6379
+  #     RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+  #   ports:
+  #     - "4006:3000"
 
 
 

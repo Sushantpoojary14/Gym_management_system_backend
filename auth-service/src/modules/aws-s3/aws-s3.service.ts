@@ -47,7 +47,7 @@ export class AwsS3Service {
 
       const filePath = path.join(localPath, filename);
       fs.writeFileSync(filePath, file.buffer);
-      return `http://localhost:5000/uploads/${folder}/${filename}`;
+      return `${process.env.HOST_URL}/uploads/${folder}/${filename}`;
     }
 
     const key = `${folder}/${filename}`;

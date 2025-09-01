@@ -1,22 +1,24 @@
-import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { CreateKycDto } from './dto/create-kyc.dto';
-import { UpdateKycDto } from './dto/update-kyc.dto';
+
 import { AwsS3Service } from '../aws-s3/aws-s3.service';
-import { Repository } from 'typeorm';
-import { Kyc } from './entities/kyc.entity';
 import { KycStatus } from 'src/common/enums/kycStatus.enum';
-import { InjectRepository } from '@nestjs/typeorm';
+import { PrismaService } from 'src/database/prisma.service';
 
 @Injectable()
 export class KycService {
   constructor(
-    @InjectRepository(Kyc)
-    private kycRepository: Repository<Kyc>,
-    private awsService: AwsS3Service
+    private prisma: PrismaService,
+    private awsService: AwsS3Service,
   ) {}
 
   async createOrUpdateKyc(
-    userId: number,
+    userId: string,
     dto: CreateKycDto,
     docFile: Express.Multer.File,
     selfieFile: Express.Multer.File,
@@ -30,96 +32,120 @@ export class KycService {
       const documentKey = docUrl.split('.com/')[1];
       const selfieKey = selfieUrl.split('.com/')[1];
 
-      const similarity = await this.awsService.compareFaces(documentKey, selfieKey);
+      const similarity = await this.awsService.compareFaces(
+        documentKey,
+        selfieKey,
+      );
       if (similarity < 60) {
         await Promise.all([
           this.awsService.deleteFile(documentKey),
           this.awsService.deleteFile(selfieKey),
         ]);
-        throw new BadRequestException('Face match failed. Please upload clearer images.');
+        throw new BadRequestException(
+          'Face match failed. Please upload clearer images.',
+        );
       }
 
-      const existing = await this.kycRepository.findOne({ where: { userId } });
+      const existing = await this.prisma.kyc.findUnique({ where: { userId } });
       if (existing) {
-        await this.kycRepository.update(existing.id, {
+        await this.prisma.kyc.update({
+          where: { id: existing.id },
+          data: {
+            documentType: dto.documentType,
+            documentNumber: dto.documentNumber,
+            documentUrl: docUrl,
+            selfieUrl: selfieUrl,
+            status: KycStatus.PENDING,
+            adminRemark: '',
+          },
+        });
+        return await this.prisma.kyc.findUnique({ where: { id: existing.id } });
+      }
+
+      const kyc = this.prisma.kyc.create({
+        data: {
+          userId,
           documentType: dto.documentType,
           documentNumber: dto.documentNumber,
           documentUrl: docUrl,
           selfieUrl: selfieUrl,
           status: KycStatus.PENDING,
-          adminRemark: "",
-        });
-        return await this.kycRepository.findOne({ where: { id: existing.id } });
-      }
-
-      const kyc = this.kycRepository.create({
-        userId,
-        documentType: dto.documentType,
-        documentNumber: dto.documentNumber,
-        documentUrl: docUrl,
-        selfieUrl: selfieUrl,
-        status: KycStatus.PENDING,
+        },
       });
 
-      return this.kycRepository.save(kyc);
+      return kyc;
     } catch (error) {
-      if(error instanceof BadRequestException) throw error.message;
-      throw new InternalServerErrorException(error.message??'Something went wrong');
+      if (error instanceof BadRequestException) throw error.message;
+      throw new InternalServerErrorException(
+        error.message ?? 'Something went wrong',
+      );
     }
   }
 
   async approveKyc(
-    kycId: number,
-    adminId: number,
+    kycId: string,
+    adminId: string,
     dto: { remark?: string },
   ): Promise<any> {
     try {
-      const kyc = await this.kycRepository.findOne({ where: { id: kycId } });
+      const kyc = await this.prisma.kyc.findUnique({ where: { id: kycId } });
       if (!kyc) throw new NotFoundException('KYC not found');
 
-      await this.kycRepository.update(kycId, {
-        status: KycStatus.APPROVED,
-        approvedBy: adminId,
-        adminRemark: dto?.remark ?? "",
+      await this.prisma.kyc.update({
+        where: { id: kycId },
+        data: {
+          status: KycStatus.APPROVED,
+          approvedBy: adminId,
+          adminRemark: dto?.remark ?? '',
+        },
       });
 
-      return await this.kycRepository.findOne({ where: { id: kycId } });
+      return await this.prisma.kyc.findUnique({ where: { id: kycId } });
     } catch (error) {
-      if(error instanceof NotFoundException) throw error.message;
-      throw new InternalServerErrorException(error.message??'Something went wrong');
+      if (error instanceof NotFoundException) throw error.message;
+      throw new InternalServerErrorException(
+        error.message ?? 'Something went wrong',
+      );
     }
   }
 
   async rejectKyc(
-    kycId: number,
-    adminId: number,
+    kycId: string,
+    adminId: string,
     dto: { remark: string },
   ): Promise<any> {
     try {
-      const kyc = await this.kycRepository.findOne({ where: { id: kycId } });
+      const kyc = await this.prisma.kyc.findUnique({ where: { id: kycId } });
       if (!kyc) throw new NotFoundException('KYC not found');
 
-      await this.kycRepository.update(kycId, {
-        status: KycStatus.REJECTED,
-        approvedBy: adminId,
-        adminRemark: dto?.remark??"",
+      await this.prisma.kyc.update({
+        where: { id: kycId },
+        data: {
+          status: KycStatus.REJECTED,
+          approvedBy: adminId,
+          adminRemark: dto?.remark ?? '',
+        },
       });
 
-      return await this.kycRepository.findOne({ where: { id: kycId } });
+      return await this.prisma.kyc.findUnique({ where: { id: kycId } });
     } catch (error) {
-      if(error instanceof NotFoundException) throw error.message;
-      throw new InternalServerErrorException(error.message??'Something went wrong');
+      if (error instanceof NotFoundException) throw error.message;
+      throw new InternalServerErrorException(
+        error.message ?? 'Something went wrong',
+      );
     }
   }
 
-  async getKyc(userId: number) {
+  async getKyc(userId: string) {
     try {
-      const kyc = await this.kycRepository.findOne({ where: { userId } });
-      if(!kyc) throw new NotFoundException('KYC not found');
-      return kyc
+      const kyc = await this.prisma.kyc.findUnique({ where: { userId } });
+      if (!kyc) throw new NotFoundException('KYC not found');
+      return kyc;
     } catch (error) {
-      if(error instanceof NotFoundException) throw error.message;
-      throw new InternalServerErrorException(error.message??'Something went wrong');
+      if (error instanceof NotFoundException) throw error.message;
+      throw new InternalServerErrorException(
+        error.message ?? 'Something went wrong',
+      );
     }
   }
 }

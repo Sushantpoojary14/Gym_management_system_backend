@@ -1,47 +1,40 @@
-import { IsString, IsEmail, IsOptional, IsBoolean, IsDate, IsUrl, IsEnum } from "class-validator";
-import { UserRole } from "src/common/enums/role.enum";
-import { Gender } from "src/common/enums/gender.enum";
+import { z } from 'zod';
+import { UserRole } from 'src/common/enums/role.enum';
+import { Gender } from 'src/common/enums/gender.enum';
 
-export class CreateAuthDto {
-    @IsOptional()
-    @IsEmail({}, { message: 'Email must be a valid email address' })
-    email: string;
 
-    @IsOptional()
-    @IsString({ message: 'Password must be a string' })
-    password: string;
+export const CreateAuthSchema = z.object({
+  email: z.email(),
 
-    // @IsOptional()
-    @IsString({ message: 'Phone must be a string' })
-    phone: string;
+  password: z.string(),
 
-    @IsOptional()
-    @IsString({ message: 'Full name must be a string' })
-    fullName?: string;
+  phoneNumber: z.string(),
 
-    @IsOptional()
-    @IsEnum(Gender, { message: 'Gender must be a valid gender' })
-    gender?: Gender|null;
+  fullName: z.string().optional(),
 
-    @IsOptional()
-    @IsDate({ message: 'Date of birth must be a valid date' })
-    dateOfBirth?: Date|null;
+  gender: z.enum(Gender).nullable().optional(),
 
-    @IsOptional()
-    @IsUrl({}, { message: 'Profile URL must be a valid URL' })
-    profileUrl?: string;
+  dateOfBirth: z
+    .union([z.coerce.date(), z.date(), z.null()])
+    .refine((val) => val === null || val instanceof Date, {
+      message: 'Date of birth must be a valid date',
+    }),
 
-    @IsOptional()
-    @IsString({ message: 'Referral code must be a string' })
-    referralCode?: string;
+  referralCode: z.string().optional(),
 
-    @IsEnum(UserRole, { message: 'Role must be a valid user role' })
-    role?: UserRole;
+  role: z.enum(UserRole).optional(),
 
-    @IsOptional()
-    @IsBoolean({ message: 'isVerified must be a boolean' })
-    isVerified?: boolean;
+  isVerified: z.boolean().optional(),
 
-    @IsString({ message: 'is18 must be true or false' })
-    is18?: "true" | "false";
-}
+  is18: z.enum(['true', 'false']).optional(),
+});
+
+export type CreateAuthDto = z.infer<typeof CreateAuthSchema>;
+
+export const LoginSchema = z.object({
+  email: z.email(),
+
+  password: z.string(),
+});
+
+export type LoginDto = z.infer<typeof LoginSchema>;

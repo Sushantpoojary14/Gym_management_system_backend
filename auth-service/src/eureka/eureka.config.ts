@@ -21,8 +21,9 @@ export const getEurekaClient = (configService: ConfigService) => {
       fetchRegistry: true,
     },
     eureka: {
+    
       host: configService.get('EUREKA_SERVER_HOST') || 'localhost',
-      port: configService.get('EUREKA_SERVER_PORT') || 8761,
+      port: configService.get('EUREKA_SERVER_PORT') || 8766,
       servicePath: '/eureka/apps/',
       maxRetries: 10,
       requestRetryDelay: 2000,

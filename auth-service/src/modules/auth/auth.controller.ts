@@ -13,8 +13,8 @@ import {
   Header,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { loginDto } from './dto/login-auth.dto';
+import { CreateAuthDto, LoginDto } from './dto/create-auth.dto';
+
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { UserRole } from 'src/common/enums/role.enum';
@@ -23,6 +23,7 @@ import { sendAuthResponse, clearAuthCookies } from 'src/common/utils/send-auth-r
 import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { passwordDto, updatePasswordDto } from './dto/password-auth.dto';
+import { CustomHttpResponse } from 'src/utils/custom-http-response';
 
 @Controller('auth')
 export class AuthController {
@@ -36,7 +37,7 @@ export class AuthController {
 
   @Post('/login')
   async login(
-    @Body() loginDto: loginDto,
+    @Body() loginDto: LoginDto,
     @Headers('x-client-type') clientType: string,
     @Res({ passthrough: true }) response: Response,
   ) {
@@ -65,16 +66,16 @@ export class AuthController {
         return userWithoutPassword;
       })() : null;
 
-      return {
+      return new CustomHttpResponse({
         message: 'Authentication successful',
         data: { user: userData },
         error: null,
         statusCode: 200
-      };
+      });
     }
     
     // For mobile clients, return tokens in response body
-    return {
+    return new CustomHttpResponse({
       message: 'Authentication successful',
       data: {
         accessToken: result.accessToken,
@@ -83,7 +84,7 @@ export class AuthController {
       },
       error: null,
       statusCode: 200
-    };
+    });
   }
 
   @Post('/send-otp')
@@ -145,18 +146,13 @@ export class AuthController {
     UserRole.ADMIN,
   )
   logout(
-    @Body() body: { sessionId: number },
+    @Body() body: { sessionId: string },
     @Res({ passthrough: true }) response: Response,
   ) {
     clearAuthCookies(response);
     return this.authService.logout(body.sessionId);
   }
 
-  /**
-   * Validates a JWT token and returns user information
-   * @param body Object containing the JWT token
-   * @returns User information if token is valid
-   */
   @Post('validate-token')
   async validateToken(@Body() body: { token: string }) {
     try {
@@ -221,7 +217,7 @@ export class AuthController {
     UserRole.SUPER_ADMIN,
   )
   logoutAll(
-    @Body() body: { userId: number },
+    @Body() body: { userId: string },
     @Res({ passthrough: true }) response: Response,
   ) {
     clearAuthCookies(response);

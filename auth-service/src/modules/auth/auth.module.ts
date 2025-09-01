@@ -3,13 +3,13 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { UserModule } from '../user/user.module';
+
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from 'src/common/jwt/jwt.strategy';
-import { UsersService } from '../user/user.service';
-import { ReferralModule } from '../referral/referral.module';
-import { SessionModule } from '../session/session.module';
 import { AwsS3Module } from '../aws-s3/aws-s3.module';
+
+import { PrismaService } from 'src/database/prisma.service';
+import { SessionService } from './session.service';
 
 @Module({
   imports: [
@@ -17,9 +17,6 @@ import { AwsS3Module } from '../aws-s3/aws-s3.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
-    UserModule,
-    ReferralModule,
-    SessionModule,
     AwsS3Module,
     PassportModule,
     JwtModule.registerAsync({
@@ -34,7 +31,7 @@ import { AwsS3Module } from '../aws-s3/aws-s3.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, PrismaService,SessionService],
   exports: [AuthService],
 })
 export class AuthModule {}

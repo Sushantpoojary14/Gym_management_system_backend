@@ -1,11 +1,10 @@
-import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
-import { KycDocuments } from 'src/common/enums/kycDocuments.enum';
 
-export class CreateKycDto {
-  @IsEnum(KycDocuments, { message: 'Invalid document type' })
-  documentType: KycDocuments;
+import { KycDocuments } from '@prisma/client';
+import z from 'zod';
 
-  @IsString()
-  @IsNotEmpty({ message: 'Document number is required' })
-  documentNumber: string;
-}
+export const CreateKycSchema = z.object({
+  documentType: z.enum(KycDocuments),
+  documentNumber: z.string().min(1).max(255),
+})
+
+export type CreateKycDto = z.infer<typeof CreateKycSchema>;

@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  password     String
+  role         UserRole      @default(MEMBER)
+  firstName    String?
+  lastName     String?
+  phoneNumber  String?
+  profileUrl   String?
+  dateOfBirth  DateTime?
+  isActive     Boolean       @default(true)
+  isVerified   Boolean       @default(true)
+  status       UserStatus    @default(ACTIVE)
+  lastLogin    DateTime?
+  refreshToken RefreshToken?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  Staff Staff?
+  Kyc   Kyc?
+}
+
+model Staff {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @unique
+  gymId     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Kyc {
+  id             String       @id @default(uuid())
+  userId         String       @unique
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentType   KycDocuments
+  documentNumber String
+  documentUrl    String
+  selfieUrl      String
+  status         KycStatus
+  adminRemark    String?
+  approvedBy     String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+enum KycDocuments {
+  AadharCard
+  PanCard
+  Passport
+}
+
+enum KycStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  STAFF
+  MEMBER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  BLOCKED
+}
