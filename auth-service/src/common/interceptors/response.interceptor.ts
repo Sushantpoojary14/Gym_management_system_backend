@@ -19,12 +19,24 @@ export class ResponseFormatterInterceptor implements NestInterceptor {
       this.reflector.get<string>('successMessage', context.getHandler()) ||
       'Request successful';
 
-    const response = context.switchToHttp().getResponse();
+
 
     return next.handle().pipe(
-      map((data) => {
-        return new ApiResponse(message, data, null, response.statusCode);
-      }),
+      map(
+        (data: {
+          data: any;
+          message: string;
+          error: string | null;
+          statusCode: number;
+        }) => {
+          return new ApiResponse(
+            data.message ?? message,
+            data.data,
+            data.error,
+            data.statusCode ?? 200,
+          );
+        },
+      ),
     );
   }
 }

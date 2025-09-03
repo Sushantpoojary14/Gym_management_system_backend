@@ -3,6 +3,10 @@
 /node_modules
 /build
 /uploads
+prisma/migrations
+prisma/seed
+proto/generated
+
 
 # Logs
 logs

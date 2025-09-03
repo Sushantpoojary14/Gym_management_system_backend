@@ -11,38 +11,63 @@ import {
   Get,
   UnauthorizedException,
   Header,
+  UploadedFile,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { CreateAuthDto, LoginDto } from './dto/create-auth.dto';
+import {
+  CreateAuthDto,
+  CreateAuthSchema,
+  LoginDto,
+  LoginSchema,
+  VerifyOtpDto,
+  VerifyOtpSchema,
+} from './dto/create-auth.dto';
 
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { UserRole } from 'src/common/enums/role.enum';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { sendAuthResponse, clearAuthCookies } from 'src/common/utils/send-auth-response.util';
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+} from '@nestjs/platform-express';
+import {
+  sendAuthResponse,
+  clearAuthCookies,
+} from 'src/common/utils/send-auth-response.util';
 import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { passwordDto, updatePasswordDto } from './dto/password-auth.dto';
 import { CustomHttpResponse } from 'src/utils/custom-http-response';
+import { ZodValidationPipe } from 'pipe/zodValidation.pipe';
+import z from 'zod';
+import { Logger } from '@nestjs/common';
 
-@Controller('auth')
+@Controller('/api/v1/auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
   constructor(private readonly authService: AuthService) {}
 
   @Post('/register')
-  @UseInterceptors(FileFieldsInterceptor([{ name: 'profile_image', maxCount: 1 }]))
-  register(@Body() createAuthDto: CreateAuthDto, @UploadedFiles() files: { profile_image?: Express.Multer.File; }) {
-    return this.authService.register(createAuthDto, files.profile_image?.[0]);
+  @UseInterceptors(FileInterceptor('profile_image'))
+  register(
+    @Body(new ZodValidationPipe(CreateAuthSchema)) createAuthDto: CreateAuthDto,
+    @UploadedFile() profile_image?: Express.Multer.File,
+  ) {
+  
+    return this.authService.register(createAuthDto, profile_image);
   }
 
   @Post('/login')
   async login(
-    @Body() loginDto: LoginDto,
+    @Body(new ZodValidationPipe(LoginSchema)) loginDto: LoginDto,
     @Headers('x-client-type') clientType: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.authService.login(loginDto.email, loginDto.password);
-    
+    const result = await this.authService.login(
+      loginDto.email,
+      loginDto.password,
+    );
+
     // For web clients, set cookies and return user data
     if (clientType === 'web') {
       response.cookie('accessToken', result.accessToken, {
@@ -61,48 +86,57 @@ export class AuthController {
         path: '/auth/refresh',
       });
 
-      const userData = result.user ? (() => {
-        const { password, ...userWithoutPassword } = result.user;
-        return userWithoutPassword;
-      })() : null;
+      const userData = result.user
+        ? (() => {
+            const { password, ...userWithoutPassword } = result.user;
+            return userWithoutPassword;
+          })()
+        : null;
 
-      return new CustomHttpResponse({
+      return {
         message: 'Authentication successful',
         data: { user: userData },
-        error: null,
-        statusCode: 200
-      });
+      };
     }
-    
+
     // For mobile clients, return tokens in response body
     return new CustomHttpResponse({
       message: 'Authentication successful',
       data: {
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
-        user: result.user
+        user: result.user,
       },
       error: null,
-      statusCode: 200
+      statusCode: 200,
     });
   }
 
   @Post('/send-otp')
-  sendOtp(@Body() dto: { phone?: string, email?: string }) {
+  sendOtp(
+    @Body(new ZodValidationPipe(CreateAuthSchema))
+    dto: {
+      phone?: CreateAuthDto['phoneNumber'];
+      email?: CreateAuthDto['email'];
+    },
+  ) {
     return this.authService.sendOtp(dto.phone, dto.email);
   }
 
-  @Post('/verify-otp')
-  async verifyOtp(
-    @Headers('x-client-type') clientType: string,
-    @Res({ passthrough: true }) response: Response,
-    @Body() dto: { code: string, phone?: string, email?: string }
+  @Post('/verify-registration-otp')
+  async verifyRegistrationOtp(
+    @Body(new ZodValidationPipe(VerifyOtpSchema))
+    dto: VerifyOtpDto,
   ) {
-    const result = await this.authService.verifyOtp(dto.code, dto.phone, dto.email);
-    return sendAuthResponse(response, clientType, {
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-    }, result.user);
+    return await this.authService.verifyRegistrationOtp(dto.otp, dto.email);
+  }
+
+  @Post('/verify-login-otp')
+  async verifyOtp(
+    @Body(new ZodValidationPipe(VerifyOtpSchema))
+    dto: VerifyOtpDto,
+  ) {
+    return await this.authService.verifyOtp(dto.otp, dto.email);
   }
 
   @Post('/refresh')
@@ -112,39 +146,46 @@ export class AuthController {
     @Req() req: Request,
     @Body() dto: { refreshToken?: string },
   ) {
-    const token = clientType === 'web' ? req.cookies?.refreshToken : dto.refreshToken;
+    const token =
+      clientType === 'web' ? req.cookies?.refreshToken : dto.refreshToken;
 
     const result = await this.authService.refreshTokens(token);
 
-    return sendAuthResponse(response, clientType, {
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-    }, result.user);
+    return sendAuthResponse(
+      response,
+      clientType,
+      {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      },
+      result.user,
+    );
   }
 
   @Post('/forget-password')
-  forgetPassword(@Body() dto:passwordDto ) {
-    return this.authService.forgotPassword(dto.email,dto.newPassword,dto.confirmPassword);
+  forgetPassword(@Body() dto: passwordDto) {
+    return this.authService.forgotPassword(
+      dto.email,
+      dto.newPassword,
+      dto.confirmPassword,
+    );
   }
 
   @Post('/update-password')
-  @UseGuards(AuthGuard('jwt'),RolesGuard)
-  @Roles(
-    UserRole.SUPER_ADMIN,
-    UserRole.STAFF,
-    UserRole.ADMIN,
-  )
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.STAFF, UserRole.ADMIN)
   updatePassword(@Body() dto: updatePasswordDto) {
-    return this.authService.updatePassword(dto.userId, dto.currentPassword, dto.newPassword, dto.confirmPassword);
+    return this.authService.updatePassword(
+      dto.userId,
+      dto.currentPassword,
+      dto.newPassword,
+      dto.confirmPassword,
+    );
   }
 
   @Post('/logout')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(
-    UserRole.SUPER_ADMIN,
-    UserRole.STAFF,
-    UserRole.ADMIN,
-  )
+  @Roles(UserRole.SUPER_ADMIN, UserRole.STAFF, UserRole.ADMIN)
   logout(
     @Body() body: { sessionId: string },
     @Res({ passthrough: true }) response: Response,
@@ -158,7 +199,7 @@ export class AuthController {
     try {
       // Verify the token using the JWT service
       const decoded = await this.authService.verifyToken(body.token);
-      
+
       // Get user details
       const user = await this.authService.getUserById(decoded.sub);
       if (!user) {
@@ -170,23 +211,24 @@ export class AuthController {
       return {
         valid: true,
         user: userWithoutPassword,
-        expiresIn: decoded.exp ? new Date(decoded.exp * 1000) : null
+        expiresIn: decoded.exp ? new Date(decoded.exp * 1000) : null,
       };
     } catch (error) {
       throw new UnauthorizedException('Invalid or expired token');
     }
   }
 
-
   @Get('validate')
   @Header('Content-Type', 'application/json')
   async validateAuthHeader(
     @Headers('authorization') authHeader: string,
-    @Res() response: Response
+    @Res() response: Response,
   ) {
-    console.log("req recieved to validate token")
+    console.log('req recieved to validate token');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      response.status(401).send({ statusCode: 401, message: 'Invalid authorization header' });
+      response
+        .status(401)
+        .send({ statusCode: 401, message: 'Invalid authorization header' });
       return;
     }
 
@@ -194,16 +236,18 @@ export class AuthController {
     try {
       const decoded = await this.authService.verifyToken(token);
       const user = await this.authService.getUserById(decoded.sub);
-      
+
       if (!user) {
-        response.status(401).send({ statusCode: 401, message: 'User not found' });
+        response
+          .status(401)
+          .send({ statusCode: 401, message: 'User not found' });
         return;
       }
 
       // Set headers for Spring Cloud Gateway
       response.setHeader('X-User-Id', user.id.toString());
       response.setHeader('X-User-Roles', user.role);
-      
+
       // Return empty 200 OK with just the headers
       response.status(200).send();
     } catch (error) {
@@ -212,10 +256,8 @@ export class AuthController {
   }
 
   @Post('/logout-all')
-  @UseGuards(AuthGuard('jwt'),RolesGuard)
-  @Roles(
-    UserRole.SUPER_ADMIN,
-  )
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
   logoutAll(
     @Body() body: { userId: string },
     @Res({ passthrough: true }) response: Response,

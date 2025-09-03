@@ -20,12 +20,14 @@ interface MyResponseObj {
 }
 
 @Catch()
-export class AllExceptionsFilter extends BaseExceptionFilter implements ExceptionFilter {
+export class AllExceptionsFilter
+  extends BaseExceptionFilter
+  implements ExceptionFilter
+{
   private readonly logFile = path.join(process.cwd(), 'logs', 'errors.log');
   private readonly logger = new Logger('AllExceptionsFilter');
 
   catch(exception: unknown, host: ArgumentsHost) {
-   
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
@@ -53,7 +55,11 @@ export class AllExceptionsFilter extends BaseExceptionFilter implements Exceptio
     super.catch(exception, host);
   }
 
-  private writeErrorLog(exception: unknown, myResponseObj: MyResponseObj, request: Request) {
+  private writeErrorLog(
+    exception: unknown,
+    myResponseObj: MyResponseObj,
+    request: Request,
+  ) {
     try {
       // Ensure logs directory exists
       const logDir = path.dirname(this.logFile);

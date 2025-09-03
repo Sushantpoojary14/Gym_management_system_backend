@@ -34,7 +34,7 @@ async function bootstrap() {
   });
   
   await app.listen(port);
-  console.log(`Application is running on: ${await app.getUrl()}`);
+  console.log(`Application is running on: ${port}`);
 }
 
 bootstrap().catch(err => {

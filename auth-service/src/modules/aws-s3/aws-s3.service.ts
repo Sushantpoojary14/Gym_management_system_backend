@@ -47,7 +47,7 @@ export class AwsS3Service {
 
       const filePath = path.join(localPath, filename);
       fs.writeFileSync(filePath, file.buffer);
-      return `${process.env.HOST_URL}/uploads/${folder}/${filename}`;
+      return `/uploads/${folder}/${filename}`;
     }
 
     const key = `${folder}/${filename}`;
@@ -83,9 +83,12 @@ export class AwsS3Service {
     return result.FaceMatches?.[0]?.Similarity ?? 0;
   }
 
-  async deleteFile(key: string): Promise<void> {
-    if (!this.isProduction) {
-      // In development, assume file is on local storage and ignore
+  async deleteFile(key: string, isLocal: boolean = false): Promise<void> {
+    if (isLocal) {
+      const localPath = path.join(__dirname, key);
+      if (fs.existsSync(localPath)) {
+        fs.unlinkSync(localPath);
+      }
       return;
     }
 

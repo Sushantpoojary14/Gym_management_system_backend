@@ -10,10 +10,9 @@ import Redis from 'ioredis';
       provide: 'REDIS_CLIENT',
       useFactory: (configService: ConfigService) => {
         return new Redis({
-          host: configService.get('REDIS_HOST'),
+          host: configService.get('REDIS_HOST') ?? 'localhost',
           port: configService.get<number>('REDIS_PORT') ?? 6379,
-          password: configService.get('REDIS_PASSWORD') || undefined,
-        });
+          });
       },
       inject: [ConfigService],
     },

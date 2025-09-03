@@ -14,15 +14,15 @@ model User {
   id           String        @id @default(uuid())
   email        String        @unique
   password     String
-  role         UserRole      @default(MEMBER)
+  role         UserRole      @default(ADMIN)
   firstName    String?
   lastName     String?
   phoneNumber  String?
   profileUrl   String?
   dateOfBirth  DateTime?
-  isActive     Boolean       @default(true)
-  isVerified   Boolean       @default(true)
-  status       UserStatus    @default(ACTIVE)
+  gender       Gender?
+  isVerified   Boolean       @default(false)
+  status       UserStatus    @default(INACTIVE)
   lastLogin    DateTime?
   refreshToken RefreshToken?
   createdAt    DateTime      @default(now())
@@ -37,6 +37,7 @@ model Staff {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String   @unique
   gymId     String
+  control   Control[] @default([MEMBERSHIP])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -67,6 +68,22 @@ model Kyc {
   updatedAt      DateTime     @updatedAt
 }
 
+enum Control {
+    PAYMENT
+    ATTENDANCE
+    GYM_ACCESS
+    MEMBERSHIP
+    MEMBER
+    STAFF
+  
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
 enum KycDocuments {
   AadharCard
   PanCard
@@ -83,7 +100,6 @@ enum UserRole {
   SUPER_ADMIN
   ADMIN
   STAFF
-  MEMBER
 }
 
 enum UserStatus {

@@ -12,7 +12,7 @@ export const getEurekaClient = (configService: ConfigService) => {
         '$': configService.get<number>('PORT'),
         '@enabled': 'true',
       },
-      vipAddress: configService.get('SERVICE_NAME') || 'FANTASY-CRICKET-AUTH-SERVICE',
+      vipAddress: configService.get('SERVICE_NAME') || 'AUTH-SERVICE',
       dataCenterInfo: {
         '@class': 'com.netflix.appinfo.InstanceInfo$DefaultDataCenterInfo',
         name: 'MyOwn',

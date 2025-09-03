@@ -13,7 +13,13 @@ export class SessionService {
     expiresAt: number,
   ): Promise<RefreshToken> {
     const hashed = await bcrypt.hash(refreshToken, 10);
-    const session = this.prisma.refreshToken.create({
+    const sessionExist = await this.prisma.refreshToken.findUnique({
+      where: { userId },
+    });
+    if (sessionExist) {
+      await this.prisma.refreshToken.delete({ where: { id: sessionExist.id } });
+    }
+    const session = await this.prisma.refreshToken.create({
       data: {
         userId,
         token: hashed,

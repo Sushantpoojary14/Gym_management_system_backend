@@ -16,3 +16,5 @@ coverage
 *.swo
 prisma/migrations
 proto/generated
+prisma/seed
+proto/generated

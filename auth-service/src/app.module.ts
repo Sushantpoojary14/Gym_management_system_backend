@@ -34,7 +34,7 @@ const isProd = process.env.NODE_ENV === 'production';
         EUREKA_INSTANCE_HOSTNAME: process.env.EUREKA_INSTANCE_HOSTNAME || 'localhost',
       })],
     }),
-    // EurekaModule,
+  
     ...(isProd
       ? [
         ThrottlerModule.forRoot({
